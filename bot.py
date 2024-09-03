@@ -4,7 +4,9 @@ from telegram.ext import Application,CommandHandler,MessageHandler,filters,Conte
 import os
 BOT_USERNAME:Final='whatsappmessangerbot'
 bot_token = os.getenv("BOT_TOKEN")
+port = int(os.getenv("PORT", 5000))
 #Commands
+
 
 async def start_command(update:Update,context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Hello! Thanks for chatting with me')
