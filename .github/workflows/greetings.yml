@@ -9,8 +9,7 @@ on:
     types: [created]
   fork:
     types: [created]
-  star:
-    types: [created]
+  
 
 jobs:
   greeting:
@@ -29,8 +28,6 @@ jobs:
           discussion-message: |
             💬 Thank you for starting a discussion! Your thoughts and questions help make this community stronger. 
             We will join the conversation soon!
-          star-message: |
-            🌟 Thank you for starring this repository! Your support helps us keep going and improving.
           fork-message: |
             🍴 Thank you for forking this repository! We’re excited to see how you’ll build upon our work. Feel free to contribute back!
 
