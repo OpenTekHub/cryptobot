@@ -22,22 +22,23 @@ To run this bot locally, follow the steps below:
    ```bash
    git clone https://github.com/yourusername/crypto-bot.git
    cd crypto-bot
-2.## Install Dependencies
+   ```
+2. ## Install Dependencies
    
    Install the required Python libraries:
    ```bash
    pip install -r requirements.txt
-```
+   ```
    Required Libraries:
 
    python-telegram-bot
    requests
 
-3.## Set Up Your Bot on Telegram
+3. ## Set Up Your Bot on Telegram
    Open Telegram and search for "BotFather".
    Type /newbot and follow the instructions to create a new bot.
    Copy the TOKEN provided by BotFather.
-4.## Set Environment Variables
+4. ## Set Environment Variables
    Store your bot token as an environment variable for secure access:
 
    On Windows:
@@ -48,20 +49,20 @@ To run this bot locally, follow the steps below:
    In the terminal, run:
    ```bash
    export BOT_TOKEN="your_bot_token_here"
-```
+   ```
    Alternatively, replace os.getenv("BOT_TOKEN") in the code with your token directly (not recommended for production).
-5.## Running the Bot
+5. ## Running the Bot
    Once you’ve set your bot token, you can start the bot by running the Python script:
 
    ```
    python bot.py
-```
+   ```
    You should see Polling....., meaning your bot is now running and ready to respond to commands.
 
    ## Usage
    Here are the available commands:
-```
+   ```
     /start: Initiate the bot.
     /help: Get help about how to use the bot.
     /price: Fetch real-time cryptocurrency prices (Bitcoin, Ethereum, Litecoin).
-```
+   ```
