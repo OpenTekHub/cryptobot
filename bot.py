@@ -5,7 +5,7 @@ import os
 import requests
 
 BOT_USERNAME: Final = 'cybergeekyash_bot'
-bot_token = "7795928066:AAHXCSY9dNZq0nC01U921jVUxag1UuNF5rA"
+bot_token = "your bot token here"
 port = int(os.getenv("PORT", 5000))
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
 
