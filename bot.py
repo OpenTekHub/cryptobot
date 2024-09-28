@@ -4,7 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import os
 import requests
 
-BOT_USERNAME: Final = 'cybergeekyash_bot'
+BOT_USERNAME: Final = 'your bot username here'
 bot_token = "your bot token here"
 port = int(os.getenv("PORT", 5000))
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price"
