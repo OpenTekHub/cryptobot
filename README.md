@@ -61,7 +61,7 @@ To run this bot locally, follow the steps below:
    ## Usage
    Here are the available commands:
 ```
-   ### /start: Initiate the bot.
-   ### /help: Get help about how to use the bot.
-   ### /price: Fetch real-time cryptocurrency prices (Bitcoin, Ethereum, Litecoin).
+    /start: Initiate the bot.
+    /help: Get help about how to use the bot.
+    /price: Fetch real-time cryptocurrency prices (Bitcoin, Ethereum, Litecoin).
 ```
