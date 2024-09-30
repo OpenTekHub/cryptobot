@@ -57,6 +57,11 @@ def handle_response(text: str):
         return 'Hey there! Type /price to check cryptocurrency prices.'
     return 'I can help you check cryptocurrency prices. Type /price to start.'
 
+# Function to greet new members
+async def greet_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    for new_member in update.message.new_chat_members:
+        await update.message.reply_text(f"Welcome {new_member.first_name}! Enjoy using the Crypto Bot!")
+
 # Error handling
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Update {update} caused error {context.error}")
@@ -73,8 +78,11 @@ if __name__ == "__main__":
     # Button handler
     app.add_handler(CallbackQueryHandler(button))
 
-    # Message Handler
+    # Message Handler for incoming messages
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
+
+    # Message Handler for new chat members
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, greet_new_member))
 
     # Error Handler
     app.add_error_handler(error)
