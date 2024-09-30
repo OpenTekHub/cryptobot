@@ -16,7 +16,7 @@ Crypto Bot is a simple yet powerful Telegram bot that allows users to get real-t
 
 ## Here's The link For Telegram Bot
 
-Click Here : *** https://t.me/trackingcryptopricerbot ***
+Click Here : https://t.me/trackingcryptopricerbot
 
 ## Installation
 
