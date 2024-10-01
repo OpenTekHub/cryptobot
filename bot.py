@@ -5,8 +5,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, filters
 
 # Constants
-BOT_USERNAME: Final = 'nflndl_bot'
-BOT_TOKEN: Final = "7755059005:AAFLNqc8IZMDa2ZkoUCyxfOHOb0eNTjCFIk"
+BOT_USERNAME: Final = 'xyz'
+BOT_TOKEN: Final = "your token"
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 
 # Conversation states
