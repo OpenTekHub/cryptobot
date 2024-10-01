@@ -7,12 +7,14 @@ Crypto Bot is a simple yet powerful Telegram bot that allows users to get real-t
 - **Instant Prices**: Get real-time prices for various cryptocurrencies.
 - **User-Friendly**: Simply click a button to fetch the price of your desired crypto product.
 - **Multi-Currency Support**: Supports a wide range of cryptocurrencies including Bitcoin, Ethereum, Litecoin, and more.
+- **Price Alerts**: Set alerts for price changes above or below a specified threshold.
 
 ## How to Use
 
 1. Start the bot on Telegram.
 2. Choose the cryptocurrency you want to check.
 3. Click the button to get the latest price for the selected currency.
+4. Use commands to convert currencies and set price alerts.
 
 ## Here's The link For Telegram Bot
 
@@ -66,7 +68,9 @@ To run this bot locally, follow the steps below:
    ## Usage
    Here are the available commands:
    ```
-    /start: Initiate the bot.
-    /help: Get help about how to use the bot.
-    /price: Fetch real-time cryptocurrency prices (Bitcoin, Ethereum, Litecoin).
+   /start: Initiate the bot.
+   /help: Get help about how to use the bot.
+   /price: Fetch real-time cryptocurrency prices (Bitcoin, Ethereum, Litecoin).
+   /convert <crypto> <currency> <amount>: Convert a cryptocurrency to another currency based on the current price.
+   /setalert <crypto> <price> <above|below>: Set a price alert for a cryptocurrency (above or below a specified price). 
    ```
