@@ -24,18 +24,22 @@ def get_top_cryptos(limit=100):
         'page': 1,
         'sparkline': False
     })
-    return response.json()
+    if response.status_code == 200:
+        return response.json()
+    return []
 
 def get_trending_cryptos():
     response = requests.get(f"{COINGECKO_API_URL}/search/trending")
-    return response.json().get('coins', [])
+    if response.status_code == 200:
+        return response.json().get('coins', [])
+    return []
 
 def get_crypto_details(crypto_id: str, currency: str = 'usd'):
     params = {'ids': crypto_id, 'vs_currencies': currency, 'include_24hr_change': 'true', 'include_market_cap': 'true'}
     response = requests.get(f"{COINGECKO_API_URL}/simple/price", params=params)
-    data = response.json()
-    if crypto_id in data:
-        return data[crypto_id]
+    if response.status_code == 200:
+        data = response.json()
+        return data.get(crypto_id)
     return None
 
 # Command Handlers
@@ -73,9 +77,9 @@ async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     for i in range(0, len(cryptos), 2):
         row = []
         for crypto in cryptos[i:i+2]:
-            name = crypto.get('name', crypto['item']['name'] if 'item' in crypto else 'Unknown')
-            symbol = crypto.get('symbol', crypto['item']['symbol'] if 'item' in crypto else 'Unknown')
-            crypto_id = crypto.get('id', crypto['item']['id'] if 'item' in crypto else 'unknown')
+            name = crypto.get('name', 'Unknown')
+            symbol = crypto.get('symbol', 'Unknown')
+            crypto_id = crypto.get('id', 'unknown')
             row.append(InlineKeyboardButton(f"{name} ({symbol.upper()})", callback_data=f"crypto:{crypto_id}"))
         keyboard.append(row)
     
@@ -105,10 +109,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await show_main_menu(update, context)
         return MAIN_MENU
     elif query.data == 'top100':
+        await query.edit_message_text("Fetching top cryptocurrencies, please wait...")
         cryptos = get_top_cryptos()
         await show_crypto_list(update, context, cryptos, "Top 100 Cryptocurrencies:")
         return CHOOSING_CRYPTO
     elif query.data == 'trending':
+        await query.edit_message_text("Fetching trending cryptocurrencies, please wait...")
         cryptos = get_trending_cryptos()
         await show_crypto_list(update, context, cryptos, "Trending Cryptocurrencies:")
         return CHOOSING_CRYPTO
