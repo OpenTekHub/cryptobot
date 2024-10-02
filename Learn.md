@@ -14,8 +14,9 @@ If you found a bug or have a suggestion, [create a new issue](https://github.co
 6. Submit a PR with a clear title and link the issue in the PR description.
 7. Wait for your PR to be reviewed ✔.
 
-**✅ Guidelines**
-
+**✅ Guidelines Important MUST READ**
+- Before you do pull-request Give ⭐ Star the [Repo](https://github.com/OpenTekHub/cryptobot) 
+- And Follow the organization [OpenTekHub](https://github.com/[OpenTekHub](https://github.com/OpenTekHub))
 - Ensure you are assigned to an issue or bug before starting development.
 - Follow naming standards for issues, pull requests (PRs), and commits.
 - Feel free to ask follow-up questions if you're unsure about something!
