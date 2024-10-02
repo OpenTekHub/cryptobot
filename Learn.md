@@ -26,7 +26,7 @@ If you found a bug or have a suggestion, [create a new issue](https://github.co
 - PRs containing unnecessary indentation changes will not be accepted.
 - Do not submit duplicate PRs.
 
-**How to make a PR**
+** ✅How to make a PR**
 
 1. Fork the repo.
 2. After forking, clone the repo to your local machine. To clone the repo to your local machine, run the following command in your terminal:
