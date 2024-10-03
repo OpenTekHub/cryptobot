@@ -117,4 +117,6 @@ Now, you're all set to track cryptocurrency prices effortlessly and stay on top 
 
 🔗 **Telegram Bot Link:** [Click to Use](https://t.me/trackingcryptopricerbot)
 
+#### 🌟 **If you like this project, don't forget to star the repo! And be sure to follow [OpenTekHub](https://github.com/OpenTekHub) for more updates!**
+
 🎉 Happy Tracking! 💰📈
