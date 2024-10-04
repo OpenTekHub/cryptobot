@@ -1,46 +1,58 @@
 import os
-from typing import Final
+import logging
+from typing import Final, List, Dict, Any
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, filters
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
-BOT_TOKEN: Final = "your token"
+BOT_TOKEN: Final = os.getenv("BOT_TOKEN")
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
+SUPPORTED_CURRENCIES: Final = ['usd', 'eur', 'gbp', 'jpy', 'aud', 'cad', 'chf', 'cny', 'inr']
 
 # Conversation states
 MAIN_MENU, CHOOSING_CRYPTO, CHOOSING_CURRENCY, TYPING_SEARCH = range(4)
 
-# Supported currencies
-SUPPORTED_CURRENCIES = ['usd', 'eur', 'gbp', 'jpy', 'aud', 'cad', 'chf', 'cny', 'inr']
+# Logging configuration
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # API Functions
-def get_top_cryptos(limit=100):
-    response = requests.get(f"{COINGECKO_API_URL}/coins/markets", params={
-        'vs_currency': 'usd',
-        'order': 'market_cap_desc',
-        'per_page': limit,
-        'page': 1,
-        'sparkline': False
-    })
-    if response.status_code == 200:
+def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
+    try:
+        response = requests.get(f"{COINGECKO_API_URL}/coins/markets", params={
+            'vs_currency': 'usd',
+            'order': 'market_cap_desc',
+            'per_page': limit,
+            'page': 1,
+            'sparkline': False
+        })
+        response.raise_for_status()
         return response.json()
-    return []
+    except requests.RequestException as e:
+        logger.error(f"Error fetching top cryptos: {e}")
+        return []
 
-def get_trending_cryptos():
-    response = requests.get(f"{COINGECKO_API_URL}/search/trending")
-    if response.status_code == 200:
+def get_trending_cryptos() -> List[Dict[str, Any]]:
+    try:
+        response = requests.get(f"{COINGECKO_API_URL}/search/trending")
+        response.raise_for_status()
         return response.json().get('coins', [])
-    return []
+    except requests.RequestException as e:
+        logger.error(f"Error fetching trending cryptos: {e}")
+        return []
 
-def get_crypto_details(crypto_id: str, currency: str = 'usd'):
-    params = {'ids': crypto_id, 'vs_currencies': currency, 'include_24hr_change': 'true', 'include_market_cap': 'true'}
-    response = requests.get(f"{COINGECKO_API_URL}/simple/price", params=params)
-    if response.status_code == 200:
+def get_crypto_details(crypto_id: str, currency: str = 'usd') -> Dict[str, Any]:
+    try:
+        params = {'ids': crypto_id, 'vs_currencies': currency, 'include_24hr_change': 'true', 'include_market_cap': 'true'}
+        response = requests.get(f"{COINGECKO_API_URL}/simple/price", params=params)
+        response.raise_for_status()
         data = response.json()
-        return data.get(crypto_id)
-    return None
+        return data.get(crypto_id, {})
+    except requests.RequestException as e:
+        logger.error(f"Error fetching crypto details for {crypto_id}: {e}")
+        return {}
 
 # Command Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -72,7 +84,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await update.message.reply_text(text, reply_markup=reply_markup)
 
-async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, cryptos, title) -> None:
+async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, cryptos: List[Dict[str, Any]], title: str) -> None:
     keyboard = []
     for i in range(0, len(cryptos), 2):
         row = []
@@ -155,20 +167,26 @@ async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Message Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_input = update.message.text.lower()
-    search_results = requests.get(f"{COINGECKO_API_URL}/search", params={'query': user_input}).json()
-    coins = search_results.get('coins', [])
-    
-    if coins:
-        await show_crypto_list(update, context, coins[:10], "Search Results:")
-        return CHOOSING_CRYPTO
-    else:
-        await update.message.reply_text("Sorry, I couldn't find any cryptocurrency matching your search.")
+    try:
+        search_results = requests.get(f"{COINGECKO_API_URL}/search", params={'query': user_input}).json()
+        coins = search_results.get('coins', [])
+        
+        if coins:
+            await show_crypto_list(update, context, coins[:10], "Search Results:")
+            return CHOOSING_CRYPTO
+        else:
+            await update.message.reply_text("Sorry, I couldn't find any cryptocurrency matching your search.")
+            await show_main_menu(update, context)
+            return MAIN_MENU
+    except requests.RequestException as e:
+        logger.error(f"Error searching for cryptocurrency: {e}")
+        await update.message.reply_text("An error occurred while searching for the cryptocurrency.")
         await show_main_menu(update, context)
         return MAIN_MENU
 
 # Error Handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Update {update} caused error {context.error}")
+    logger.error(f"Update {update} caused error {context.error}")
 
 def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()
@@ -189,7 +207,7 @@ def main() -> None:
     app.add_handler(CommandHandler("help", help_command))
     app.add_error_handler(error)
 
-    print('Starting bot...')
+    logger.info('Starting bot...')
     app.run_polling(poll_interval=3)
 
 if __name__ == '__main__':
