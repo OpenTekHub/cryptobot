@@ -1,8 +1,12 @@
 import os
+from turtle import update
 from typing import Final
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, filters
+import matplotlib.pyplot as plt
+from io import BytesIO
+
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
@@ -100,6 +104,33 @@ async def show_currency_options(update: Update, context: ContextTypes.DEFAULT_TY
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text('Choose a currency:', reply_markup=reply_markup)
 
+#Historical Data
+
+def get_historical_data(crypto_id: str, currency: str = 'usd', days: int = 7):
+    params = {'vs_currency': currency, 'days': days, 'interval': 'daily'}
+    response = requests.get(f"{COINGECKO_API_URL}/coins/{crypto_id}/market_chart", params=params)
+    if response.status_code == 200:
+        data = response.json()
+        prices = data.get('prices', [])
+        return prices
+    return []
+def generate_price_chart(prices, days):
+    dates = [price[0] for price in prices]
+    values = [price[1] for price in prices]
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(dates, values)
+    plt.title(f"{days} Day Price Chart")
+    plt.xlabel("Date")
+    plt.ylabel("Price")
+    plt.grid(True)
+    plt.xticks(rotation=45)
+  
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    return buf
+
 # Callback Query Handler
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -130,6 +161,15 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         crypto_id = context.user_data.get('crypto', 'bitcoin')
         await show_crypto_details(update, context, crypto_id, currency)
         return MAIN_MENU
+    elif query.data.startswith('chart:'):
+        crypto_id, days = query.data.split(':')[1], int(query.data.split(':')[2])
+        prices = get_historical_data(crypto_id, currency=context.user_data.get('currency', 'usd'), days=days)
+        if prices:
+            chart = generate_price_chart(prices, days)
+            await update.callback_query.message.reply_photo(photo=chart, caption=f"{crypto_id.capitalize()} price chart ({days} days)")
+        else:
+            await update.callback_query.edit_message_text(f"Could not fetch historical data for {crypto_id}. Please try again later.")
+        return MAIN_MENU
 
 async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE, crypto_id: str, currency: str) -> None:
     details = get_crypto_details(crypto_id, currency)
@@ -148,7 +188,10 @@ async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         message = f"Sorry, I couldn't find the details for {crypto_id}."
     
-    keyboard = [[InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
+    keyboard = [
+        [InlineKeyboardButton("7-Day Chart", callback_data=f"chart:{crypto_id}:7")],
+        [InlineKeyboardButton("30-Day Chart", callback_data=f"chart:{crypto_id}:30")],
+        [InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(message, reply_markup=reply_markup)
 
