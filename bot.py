@@ -2,24 +2,23 @@ import os
 import logging
 from typing import Final, List, Dict, Any
 import requests
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, filters
+import telebot
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, Message
 
 # Constants
-BOT_USERNAME: Final = 'xyz'
 BOT_TOKEN: Final = os.getenv("BOT_TOKEN")
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 SUPPORTED_CURRENCIES: Final = ['usd', 'eur', 'gbp', 'jpy', 'aud', 'cad', 'chf', 'cny', 'inr']
-
-# Conversation states
-MAIN_MENU, CHOOSING_CRYPTO, CHOOSING_CURRENCY, TYPING_SEARCH = range(4)
 
 # Logging configuration
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize bot
+bot = telebot.TeleBot(BOT_TOKEN)
+
 # API Functions
-def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
+def get_top_cryptos(limit: int = 50) -> List[Dict[str, Any]]:
     try:
         response = requests.get(f"{COINGECKO_API_URL}/coins/markets", params={
             'vs_currency': 'usd',
@@ -38,7 +37,15 @@ def get_trending_cryptos() -> List[Dict[str, Any]]:
     try:
         response = requests.get(f"{COINGECKO_API_URL}/search/trending")
         response.raise_for_status()
-        return response.json().get('coins', [])
+        data = response.json()
+        
+        # Log the entire response for debugging
+        logger.debug(f"Trending cryptos response: {data}")
+        
+        # Log the extracted coins for debugging
+        logger.debug(f"Extracted coins: {coins}")
+        
+        return data
     except requests.RequestException as e:
         logger.error(f"Error fetching trending cryptos: {e}")
         return []
@@ -55,11 +62,12 @@ def get_crypto_details(crypto_id: str, currency: str = 'usd') -> Dict[str, Any]:
         return {}
 
 # Command Handlers
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await show_main_menu(update, context)
-    return MAIN_MENU
+@bot.message_handler(commands=['start'])
+def start(message: Message) -> None:
+    show_main_menu(message)
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@bot.message_handler(commands=['help'])
+def help_command(message: Message) -> None:
     help_text = (
         "Welcome to the Crypto Price Bot!\n\n"
         "Commands:\n"
@@ -67,25 +75,22 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/help - Show this help message\n\n"
         "You can check prices of top cryptocurrencies, view trending coins, or search for a specific cryptocurrency."
     )
-    await update.message.reply_text(help_text)
+    bot.send_message(message.chat.id, help_text)
 
 # Menu Functions
-async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Top 100 Cryptocurrencies", callback_data='top100')],
-        [InlineKeyboardButton("Trending Cryptocurrencies", callback_data='trending')],
-        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+def show_main_menu(message: Message) -> None:
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row_width = 1
+    keyboard.add(
+        InlineKeyboardButton("Top 100 Cryptocurrencies", callback_data='top100'),
+        InlineKeyboardButton("Trending Cryptocurrencies", callback_data='trending'),
+        InlineKeyboardButton("Search Cryptocurrency", callback_data='search')
+    )
     text = "Welcome to the Crypto Price Bot! What would you like to do?"
-    
-    if update.callback_query:
-        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
-    else:
-        await update.message.reply_text(text, reply_markup=reply_markup)
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
-async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, cryptos: List[Dict[str, Any]], title: str) -> None:
-    keyboard = []
+def show_crypto_list(call: CallbackQuery, cryptos: List[Dict[str, Any]], title: str) -> None:
+    keyboard = InlineKeyboardMarkup()
     for i in range(0, len(cryptos), 2):
         row = []
         for crypto in cryptos[i:i+2]:
@@ -93,57 +98,45 @@ async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, c
             symbol = crypto.get('symbol', 'Unknown')
             crypto_id = crypto.get('id', 'unknown')
             row.append(InlineKeyboardButton(f"{name} ({symbol.upper()})", callback_data=f"crypto:{crypto_id}"))
-        keyboard.append(row)
+        keyboard.add(*row)
     
-    keyboard.append([InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    if update.callback_query:
-        await update.callback_query.edit_message_text(title, reply_markup=reply_markup)
-    else:
-        await update.message.reply_text(title, reply_markup=reply_markup)
+    keyboard.add(InlineKeyboardButton("Back to Main Menu", callback_data='main_menu'))
+    bot.edit_message_text(title, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
-async def show_currency_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton(currency.upper(), callback_data=f"currency:{currency}")]
-        for currency in SUPPORTED_CURRENCIES
-    ]
-    keyboard.append([InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text('Choose a currency:', reply_markup=reply_markup)
+def show_currency_options(call: CallbackQuery) -> None:
+    keyboard = InlineKeyboardMarkup()
+    for currency in SUPPORTED_CURRENCIES:
+        keyboard.add(InlineKeyboardButton(currency.upper(), callback_data=f"currency:{currency}"))
+    keyboard.add(InlineKeyboardButton("Back to Main Menu", callback_data='main_menu'))
+    bot.edit_message_text('Choose a currency:', call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 # Callback Query Handler
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == 'main_menu':
-        await show_main_menu(update, context)
-        return MAIN_MENU
-    elif query.data == 'top100':
-        await query.edit_message_text("Fetching top cryptocurrencies, please wait...")
+@bot.callback_query_handler(func=lambda call: True)
+def button_click(call: CallbackQuery) -> None:
+    if call.data == 'main_menu':
+        show_main_menu(call.message)
+    elif call.data == 'top100':
+        bot.edit_message_text("Fetching top cryptocurrencies, please wait...", call.message.chat.id, call.message.message_id)
         cryptos = get_top_cryptos()
-        await show_crypto_list(update, context, cryptos, "Top 100 Cryptocurrencies:")
-        return CHOOSING_CRYPTO
-    elif query.data == 'trending':
-        await query.edit_message_text("Fetching trending cryptocurrencies, please wait...")
+        show_crypto_list(call, cryptos, "Top 100 Cryptocurrencies:")
+    elif call.data == 'trending':
+        bot.edit_message_text("Fetching trending cryptocurrencies, please wait...", call.message.chat.id, call.message.message_id)
         cryptos = get_trending_cryptos()
-        await show_crypto_list(update, context, cryptos, "Trending Cryptocurrencies:")
-        return CHOOSING_CRYPTO
-    elif query.data == 'search':
-        await query.edit_message_text("Please enter the name of the cryptocurrency you want to check:")
-        return TYPING_SEARCH
-    elif query.data.startswith('crypto:'):
-        context.user_data['crypto'] = query.data.split(':')[1]
-        await show_currency_options(update, context)
-        return CHOOSING_CURRENCY
-    elif query.data.startswith('currency:'):
-        currency = query.data.split(':')[1]
-        crypto_id = context.user_data.get('crypto', 'bitcoin')
-        await show_crypto_details(update, context, crypto_id, currency)
-        return MAIN_MENU
+        show_crypto_list(call, cryptos, "Trending Cryptocurrencies:")
+    elif call.data == 'search':
+        bot.edit_message_text("Please enter the name of the cryptocurrency you want to check:", call.message.chat.id, call.message.message_id)
+        bot.register_next_step_handler(call.message, handle_message)
+    elif call.data.startswith('crypto:'):
+        crypto_id = call.data.split(':')[1]
+        bot.answer_callback_query(call.id)
+        show_currency_options(call)
+        bot.register_next_step_handler(call.message, lambda msg: show_crypto_details(msg, crypto_id))
+    elif call.data.startswith('currency:'):
+        currency = call.data.split(':')[1]
+        crypto_id = call.message.text.split()[1].lower()
+        show_crypto_details(call.message, crypto_id, currency)
 
-async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE, crypto_id: str, currency: str) -> None:
+def show_crypto_details(message: Message, crypto_id: str, currency: str) -> None:
     details = get_crypto_details(crypto_id, currency)
     if details:
         price = details.get(currency, 'N/A')
@@ -151,64 +144,41 @@ async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE
         market_cap = details.get(f'{currency}_market_cap', 'N/A')
         
         change_symbol = '🔺' if change_24h > 0 else '🔻' if change_24h < 0 else '➖'
-        message = (
+        text = (
             f"💰 {crypto_id.capitalize()} ({currency.upper()})\n"
             f"Price: {price:,.2f} {currency.upper()}\n"
             f"24h Change: {change_symbol} {abs(change_24h):.2f}%\n"
             f"Market Cap: {market_cap:,.0f} {currency.upper()}"
         )
     else:
-        message = f"Sorry, I couldn't find the details for {crypto_id}."
+        text = f"Sorry, I couldn't find the details for {crypto_id}."
     
-    keyboard = [[InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text(message, reply_markup=reply_markup)
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Back to Main Menu", callback_data='main_menu'))
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
 # Message Handler
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user_input = update.message.text.lower()
+@bot.message_handler(func=lambda message: True)
+def handle_message(message: Message) -> None:
+    user_input = message.text.lower()
     try:
         search_results = requests.get(f"{COINGECKO_API_URL}/search", params={'query': user_input}).json()
         coins = search_results.get('coins', [])
         
         if coins:
-            await show_crypto_list(update, context, coins[:10], "Search Results:")
-            return CHOOSING_CRYPTO
+            show_crypto_list(message, coins[:10], "Search Results:")
         else:
-            await update.message.reply_text("Sorry, I couldn't find any cryptocurrency matching your search.")
-            await show_main_menu(update, context)
-            return MAIN_MENU
+            bot.send_message(message.chat.id, "Sorry, I couldn't find any cryptocurrency matching your search.")
+            show_main_menu(message)
     except requests.RequestException as e:
         logger.error(f"Error searching for cryptocurrency: {e}")
-        await update.message.reply_text("An error occurred while searching for the cryptocurrency.")
-        await show_main_menu(update, context)
-        return MAIN_MENU
+        bot.send_message(message.chat.id, "An error occurred while searching for the cryptocurrency.")
+        show_main_menu(message)
 
-# Error Handler
-async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"Update {update} caused error {context.error}")
 
 def main() -> None:
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            MAIN_MENU: [CallbackQueryHandler(button_click)],
-            CHOOSING_CRYPTO: [CallbackQueryHandler(button_click)],
-            CHOOSING_CURRENCY: [CallbackQueryHandler(button_click)],
-            TYPING_SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)],
-        },
-        fallbacks=[CommandHandler("start", start)],
-        per_message=False
-    )
-
-    app.add_handler(conv_handler)
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_error_handler(error)
-
-    logger.info('Starting bot...')
-    app.run_polling(poll_interval=3)
+    logger.info('Starting 🤖.....🚲🚲🚲')
+    bot.polling()
 
 if __name__ == '__main__':
     main()
