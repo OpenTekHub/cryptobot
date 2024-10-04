@@ -42,9 +42,6 @@ def get_trending_cryptos() -> List[Dict[str, Any]]:
         # Log the entire response for debugging
         logger.debug(f"Trending cryptos response: {data}")
         
-        # Log the extracted coins for debugging
-        logger.debug(f"Extracted coins: {coins}")
-        
         return data
     except requests.RequestException as e:
         logger.error(f"Error fetching trending cryptos: {e}")
