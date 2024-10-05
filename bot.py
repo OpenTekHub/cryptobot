@@ -17,8 +17,11 @@ logger = logging.getLogger(__name__)
 # Initialize bot
 bot = telebot.TeleBot(BOT_TOKEN)
 
+# User context to store state
+user_context: Dict[int, Dict[str, str]] = {}
+
 # API Functions
-def get_top_cryptos(limit: int = 50) -> List[Dict[str, Any]]:
+def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
     try:
         response = requests.get(f"{COINGECKO_API_URL}/coins/markets", params={
             'vs_currency': 'usd',
@@ -37,19 +40,22 @@ def get_trending_cryptos() -> List[Dict[str, Any]]:
     try:
         response = requests.get(f"{COINGECKO_API_URL}/search/trending")
         response.raise_for_status()
-        data = response.json()
-        
-        # Log the entire response for debugging
-        logger.debug(f"Trending cryptos response: {data}")
-        
-        return data
+        coins = response.json().get('coins', [])
+        return [{'id': coin['item']['id'], 'name': coin['item']['name'], 
+                 'symbol': coin['item']['symbol'], 'image': coin['item']['thumb']} 
+                for coin in coins]
     except requests.RequestException as e:
         logger.error(f"Error fetching trending cryptos: {e}")
         return []
 
-def get_crypto_details(crypto_id: str, currency: str = 'usd') -> Dict[str, Any]:
+def get_crypto_details(crypto_id: str, currency: str) -> Dict[str, Any]:
     try:
-        params = {'ids': crypto_id, 'vs_currencies': currency, 'include_24hr_change': 'true', 'include_market_cap': 'true'}
+        params = {
+            'ids': crypto_id,
+            'vs_currencies': currency,
+            'include_24hr_change': 'true',
+            'include_market_cap': 'true'
+        }
         response = requests.get(f"{COINGECKO_API_URL}/simple/price", params=params)
         response.raise_for_status()
         data = response.json()
@@ -86,7 +92,7 @@ def show_main_menu(message: Message) -> None:
     text = "Welcome to the Crypto Price Bot! What would you like to do?"
     bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
-def show_crypto_list(call: CallbackQuery, cryptos: List[Dict[str, Any]], title: str) -> None:
+def show_crypto_list(call_or_message, cryptos: List[Dict[str, Any]], title: str) -> None:
     keyboard = InlineKeyboardMarkup()
     for i in range(0, len(cryptos), 2):
         row = []
@@ -94,11 +100,18 @@ def show_crypto_list(call: CallbackQuery, cryptos: List[Dict[str, Any]], title: 
             name = crypto.get('name', 'Unknown')
             symbol = crypto.get('symbol', 'Unknown')
             crypto_id = crypto.get('id', 'unknown')
-            row.append(InlineKeyboardButton(f"{name} ({symbol.upper()})", callback_data=f"crypto:{crypto_id}"))
+            image_url = crypto.get('image', '')
+
+            button_text = f"{name} ({symbol.upper()})"
+            row.append(InlineKeyboardButton(button_text, callback_data=f"crypto:{crypto_id}"))
         keyboard.add(*row)
     
     keyboard.add(InlineKeyboardButton("Back to Main Menu", callback_data='main_menu'))
-    bot.edit_message_text(title, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+
+    if isinstance(call_or_message, CallbackQuery):
+        bot.edit_message_text(title, call_or_message.message.chat.id, call_or_message.message.message_id, reply_markup=keyboard)
+    else:
+        bot.send_message(call_or_message.chat.id, title, reply_markup=keyboard)
 
 def show_currency_options(call: CallbackQuery) -> None:
     keyboard = InlineKeyboardMarkup()
@@ -124,32 +137,52 @@ def button_click(call: CallbackQuery) -> None:
         bot.edit_message_text("Please enter the name of the cryptocurrency you want to check:", call.message.chat.id, call.message.message_id)
         bot.register_next_step_handler(call.message, handle_message)
     elif call.data.startswith('crypto:'):
-        crypto_id = call.data.split(':')[1]
-        bot.answer_callback_query(call.id)
-        show_currency_options(call)
-        bot.register_next_step_handler(call.message, lambda msg: show_crypto_details(msg, crypto_id))
+        handle_crypto_selection(call)
     elif call.data.startswith('currency:'):
-        currency = call.data.split(':')[1]
-        crypto_id = call.message.text.split()[1].lower()
-        show_crypto_details(call.message, crypto_id, currency)
+        handle_currency_selection(call)
 
-def show_crypto_details(message: Message, crypto_id: str, currency: str) -> None:
-    details = get_crypto_details(crypto_id, currency)
-    if details:
-        price = details.get(currency, 'N/A')
-        change_24h = details.get(f'{currency}_24h_change', 'N/A')
-        market_cap = details.get(f'{currency}_market_cap', 'N/A')
-        
-        change_symbol = '🔺' if change_24h > 0 else '🔻' if change_24h < 0 else '➖'
-        text = (
-            f"💰 {crypto_id.capitalize()} ({currency.upper()})\n"
-            f"Price: {price:,.2f} {currency.upper()}\n"
-            f"24h Change: {change_symbol} {abs(change_24h):.2f}%\n"
-            f"Market Cap: {market_cap:,.0f} {currency.upper()}"
-        )
-    else:
-        text = f"Sorry, I couldn't find the details for {crypto_id}."
-    
+def handle_crypto_selection(call: CallbackQuery) -> None:
+    crypto_id = call.data.split(':')[1]
+    user_context[call.from_user.id] = {'crypto_id': crypto_id}
+    bot.answer_callback_query(call.id)
+    show_currency_options(call)
+
+def handle_currency_selection(call: CallbackQuery) -> None:
+    currency = call.data.split(':')[1]
+    crypto_id = user_context[call.from_user.id].get('crypto_id')
+    show_crypto_details(call.message, crypto_id, currency)
+
+def show_crypto_details(message, crypto_id: str, currency: str) -> None:
+    try:
+        details = get_crypto_details(crypto_id, currency)
+        if isinstance(details, dict):
+            price = details.get(currency, 'N/A')
+            change_24h = details.get(f'{currency}_24h_change', 'N/A')
+            market_cap = details.get(f'{currency}_market_cap', 'N/A')
+
+            if isinstance(change_24h, (int, float)):
+                change_symbol = '+' if change_24h > 0 else ('-' if change_24h < 0 else '')
+                change_24h = f"{abs(change_24h):.2f}%"
+            else:
+                change_symbol = ''
+                change_24h = 'N/A'
+
+            price = price if isinstance(price, (int, float)) else 'N/A'
+            market_cap = market_cap if isinstance(market_cap, (int, float)) else 'N/A'
+
+            text = (
+                f"{crypto_id.capitalize()} ({currency.upper()})\n"
+                f"Price: {price} {currency.upper()}\n"
+                f"24h Change: {change_symbol} {change_24h}\n"
+                f"Market Cap: {market_cap} {currency.upper()}"
+            )
+        else:
+            text = f"Sorry, I couldn't find the details for {crypto_id}. Please ensure the cryptocurrency ID is correct."
+
+    except Exception as e:
+        logger.error(f"Error retrieving crypto details: {e}")
+        text = "An error occurred while fetching cryptocurrency data. Please try again later."
+
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton("Back to Main Menu", callback_data='main_menu'))
     bot.send_message(message.chat.id, text, reply_markup=keyboard)
@@ -159,11 +192,16 @@ def show_crypto_details(message: Message, crypto_id: str, currency: str) -> None
 def handle_message(message: Message) -> None:
     user_input = message.text.lower()
     try:
+        # Fetch search results from CoinGecko
         search_results = requests.get(f"{COINGECKO_API_URL}/search", params={'query': user_input}).json()
         coins = search_results.get('coins', [])
-        
+
         if coins:
-            show_crypto_list(message, coins[:10], "Search Results:")
+            # Only take the first 10 results to display
+            detailed_coins = [{'id': coin['id'], 'name': coin['name'], 
+                               'symbol': coin['symbol'], 'image': coin.get('thumb', '')} 
+                              for coin in coins[:10]]
+            show_crypto_list(message, detailed_coins, "Search Results:")
         else:
             bot.send_message(message.chat.id, "Sorry, I couldn't find any cryptocurrency matching your search.")
             show_main_menu(message)
@@ -172,9 +210,8 @@ def handle_message(message: Message) -> None:
         bot.send_message(message.chat.id, "An error occurred while searching for the cryptocurrency.")
         show_main_menu(message)
 
-
 def main() -> None:
-    logger.info('Starting 🤖.....🚲🚲🚲')
+    logger.info('Starting bot...')
     bot.polling()
 
 if __name__ == '__main__':
