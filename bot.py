@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
-BOT_TOKEN: Final = "7274567873:AAE-h1rqRVUHtvsK1P5IWM1kQ772s8lEvtI"
+BOT_TOKEN: Final = "your token"
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 
 # Conversation states
