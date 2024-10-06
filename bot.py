@@ -77,6 +77,7 @@ async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     for i in range(0, len(cryptos), 2):
         row = []
         for crypto in cryptos[i:i+2]:
+            crypto = crypto.get('item', crypto)
             name = crypto.get('name', 'Unknown')
             symbol = crypto.get('symbol', 'Unknown')
             crypto_id = crypto.get('id', 'unknown')
