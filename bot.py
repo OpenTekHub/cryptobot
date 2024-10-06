@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
-BOT_TOKEN: Final = "your token"
+BOT_TOKEN: Final = os.getenv("BOT_TOKEN")
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 
 # Conversation states
@@ -62,7 +62,10 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     keyboard = [
         [InlineKeyboardButton("Top 100 Cryptocurrencies", callback_data='top100')],
         [InlineKeyboardButton("Trending Cryptocurrencies", callback_data='trending')],
-        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')]
+        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')],
+        [InlineKeyboardButton("Litecoin (LTC)", callback_data='crypto:litecoin')],
+        [InlineKeyboardButton("Dogecoin (DOGE)", callback_data='crypto:dogecoin')],
+        [InlineKeyboardButton("Cardano (ADA)", callback_data='crypto:cardano')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "Welcome to the Crypto Price Bot! What would you like to do?"
