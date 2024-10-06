@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
-BOT_TOKEN: Final = "your token"
+BOT_TOKEN: Final = "7274567873:AAE-h1rqRVUHtvsK1P5IWM1kQ772s8lEvtI"
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 
 # Conversation states
@@ -77,6 +77,7 @@ async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     for i in range(0, len(cryptos), 2):
         row = []
         for crypto in cryptos[i:i+2]:
+            crypto = crypto.get('item', crypto)
             name = crypto.get('name', 'Unknown')
             symbol = crypto.get('symbol', 'Unknown')
             crypto_id = crypto.get('id', 'unknown')
