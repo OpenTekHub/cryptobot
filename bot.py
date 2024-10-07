@@ -8,6 +8,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 BOT_USERNAME: Final = 'xyz'
 BOT_TOKEN: Final = "your token"
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
+COINGECKO_NEWS_URL: Final = "https://www.coingecko.com/en/news"  # Alternatively, find a news API source
 
 # Conversation states
 MAIN_MENU, CHOOSING_CRYPTO, CHOOSING_CURRENCY, TYPING_SEARCH = range(4)
@@ -42,6 +43,18 @@ def get_crypto_details(crypto_id: str, currency: str = 'usd'):
         return data.get(crypto_id)
     return None
 
+# NEW: Function to fetch latest crypto news (You can modify it with a different news source or API)
+def get_crypto_news():
+    response = requests.get(COINGECKO_NEWS_URL)
+    if response.status_code == 200:
+        # This is just an example; ideally, you'd parse the data from the response to get a proper news format.
+        # You may need to explore CoinGecko's response format for news or use a separate news API.
+        return [
+            {"title": "Bitcoin Reaches New High!", "url": "https://news.bitcoin.com/bitcoin-reaches-new-high"},
+            {"title": "Ethereum 2.0 Update Explained", "url": "https://news.ethereum.com/ethereum-2-0-update"}
+        ]  # This is dummy data, replace it with actual API response
+    return []
+
 # Command Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await show_main_menu(update, context)
@@ -62,7 +75,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     keyboard = [
         [InlineKeyboardButton("Top 100 Cryptocurrencies", callback_data='top100')],
         [InlineKeyboardButton("Trending Cryptocurrencies", callback_data='trending')],
-        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')]
+        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')],
+        [InlineKeyboardButton("Latest Crypto News", callback_data='crypto_news')]  # New button for news
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "Welcome to the Crypto Price Bot! What would you like to do?"
@@ -92,14 +106,19 @@ async def show_crypto_list(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     else:
         await update.message.reply_text(title, reply_markup=reply_markup)
 
-async def show_currency_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton(currency.upper(), callback_data=f"currency:{currency}")]
-        for currency in SUPPORTED_CURRENCIES
-    ]
-    keyboard.append([InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')])
+# NEW: Function to display crypto news
+async def show_crypto_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    news_articles = get_crypto_news()
+    if news_articles:
+        news_text = ""
+        for article in news_articles:
+            news_text += f"📰 *{article['title']}*\nRead more: {article['url']}\n\n"
+    else:
+        news_text = "Sorry, I couldn't fetch the latest news at the moment."
+
+    keyboard = [[InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text('Choose a currency:', reply_markup=reply_markup)
+    await update.callback_query.edit_message_text(news_text, reply_markup=reply_markup, parse_mode='Markdown')
 
 # Callback Query Handler
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -122,6 +141,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     elif query.data == 'search':
         await query.edit_message_text("Please enter the name of the cryptocurrency you want to check:")
         return TYPING_SEARCH
+    elif query.data == 'crypto_news':  # New callback for news
+        await query.edit_message_text("Fetching the latest crypto news, please wait...")
+        await show_crypto_news(update, context)
+        return MAIN_MENU
     elif query.data.startswith('crypto:'):
         context.user_data['crypto'] = query.data.split(':')[1]
         await show_currency_options(update, context)
@@ -131,27 +154,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         crypto_id = context.user_data.get('crypto', 'bitcoin')
         await show_crypto_details(update, context, crypto_id, currency)
         return MAIN_MENU
-
-async def show_crypto_details(update: Update, context: ContextTypes.DEFAULT_TYPE, crypto_id: str, currency: str) -> None:
-    details = get_crypto_details(crypto_id, currency)
-    if details:
-        price = details.get(currency, 'N/A')
-        change_24h = details.get(f'{currency}_24h_change', 'N/A')
-        market_cap = details.get(f'{currency}_market_cap', 'N/A')
-        
-        change_symbol = '🔺' if change_24h > 0 else '🔻' if change_24h < 0 else '➖'
-        message = (
-            f"💰 {crypto_id.capitalize()} ({currency.upper()})\n"
-            f"Price: {price:,.2f} {currency.upper()}\n"
-            f"24h Change: {change_symbol} {abs(change_24h):.2f}%\n"
-            f"Market Cap: {market_cap:,.0f} {currency.upper()}"
-        )
-    else:
-        message = f"Sorry, I couldn't find the details for {crypto_id}."
-    
-    keyboard = [[InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text(message, reply_markup=reply_markup)
 
 # Message Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -182,16 +184,13 @@ def main() -> None:
             CHOOSING_CURRENCY: [CallbackQueryHandler(button_click)],
             TYPING_SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)],
         },
-        fallbacks=[CommandHandler("start", start)],
-        per_message=False
+        fallbacks=[CommandHandler("help", help_command)]
     )
 
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("help", help_command))
     app.add_error_handler(error)
+    app.run_polling()
 
-    print('Starting bot...')
-    app.run_polling(poll_interval=3)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
