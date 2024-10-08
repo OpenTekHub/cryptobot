@@ -61,8 +61,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "Welcome to the Crypto Price Bot!\n\n"
         "Commands:\n"
         "/start - Show main menu\n"
-        "/help - Show this help message\n\n"
-        "You can check prices of top cryptocurrencies, view trending coins, or search for a specific cryptocurrency."
+        "/help - Show this help message\n"
+        "/convert - Convert Currencies From One To Another\n\n"
+        "You can check prices of top cryptocurrencies, view trending coins, search for a specific cryptocurrency or Convert them."
     )
     await update.message.reply_text(help_text)
 
@@ -295,6 +296,31 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Update {update} caused error {context.error}")
 
 
+# Convert Currency into USD
+# Function to fetch crypto price
+def get_crypto_price(crypto: str, currency: str = 'usd'):
+    params = {'ids': crypto, 'vs_currencies': currency}
+    response = requests.get(COINGECKO_API_URL, params=params)
+    data = response.json()
+    return data.get(crypto, {}).get(currency, 'Price not available')
+
+
+# Convert crypto to different currencies
+async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 3:
+        await update.message.reply_text("Please use the format: /convert <crypto> <currency> <amount>")
+        return
+    crypto = context.args[0].lower()
+    currency = context.args[1].lower()
+    amount = float(context.args[2])
+    price = get_crypto_price(crypto, currency)
+    if price != 'Price not available':
+        converted_amount = price * amount
+        await update.message.reply_text(f"{amount} {crypto.capitalize()} is worth {converted_amount} {currency.upper()}.")
+    else:
+        await update.message.reply_text('Price not available.')
+
+
 def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -312,6 +338,7 @@ def main() -> None:
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CommandHandler('convert', convert_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_error_handler(error_handler)
 
