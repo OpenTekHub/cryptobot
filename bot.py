@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 # Constants
 BOT_USERNAME: Final = 'xyz'
-BOT_TOKEN: Final = "your token"
+BOT_TOKEN: Final = "Your Bot Token"
 COINGECKO_API_URL: Final = "https://api.coingecko.com/api/v3"
 
 # Conversation states
@@ -300,7 +300,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Function to fetch crypto price
 def get_crypto_price(crypto: str, currency: str = 'usd'):
     params = {'ids': crypto, 'vs_currencies': currency}
-    response = requests.get(COINGECKO_API_URL, params=params)
+    response = requests.get(COINGECKO_API_URL+'/simple/price', params=params)
     data = response.json()
     return data.get(crypto, {}).get(currency, 'Price not available')
 
@@ -308,7 +308,7 @@ def get_crypto_price(crypto: str, currency: str = 'usd'):
 # Convert crypto to different currencies
 async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 3:
-        await update.message.reply_text("Please use the format: /convert <crypto> <currency> <amount>")
+        await update.message.reply_text("Please use the format: /convert <crypto> <currency> <amount>\n\nFor Example `/convert bitcoin usd 1` - Convert bitcoin price into usd by fettching real time data\n\n")
         return
     crypto = context.args[0].lower()
     currency = context.args[1].lower()
@@ -319,6 +319,53 @@ async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"{amount} {crypto.capitalize()} is worth {converted_amount} {currency.upper()}.")
     else:
         await update.message.reply_text('Price not available.')
+
+
+# Add alerts 
+
+# Function to set up price alerts
+user_alerts = {}
+
+def set_price_alert(user_id, crypto, threshold_price, condition):
+    user_alerts[user_id] = (crypto, threshold_price, condition)
+
+async def set_alert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 3:
+        usage_text = (
+            "Please use the format: /setalert <crypto> <above|below> <price>\n"
+        )
+        await update.message.reply_text(usage_text)
+        return
+
+    crypto = context.args[0].lower()  # Get the cryptocurrency (e.g., 'bitcoin')
+    condition = context.args[1].lower()  # Get the condition (e.g., 'above' or 'below')
+    price = float(context.args[2])  # Get the price threshold
+
+    if condition not in ['above', 'below']:
+        await update.message.reply_text("Please specify 'above' or 'below' for the price alert condition.")
+        return
+
+    user_id = update.message.from_user.id  # Get the user's ID
+
+    # Save the alert with the condition (above or below)
+    set_price_alert(user_id, crypto, price, condition)
+
+    # Notify the user that the alert has been set
+    await update.message.reply_text(
+        f"Price alert set for {crypto.capitalize()} when price is {condition} ${price} USD.\n"
+        "You'll be notified when this condition is met."
+    )
+
+async def alert_check(context: ContextTypes.DEFAULT_TYPE):
+    for user_id, (crypto, threshold_price, condition) in user_alerts.items():
+        price = get_crypto_price(crypto)
+
+        # Check if the condition (above or below) is met
+        if (condition == 'above' and price >= threshold_price) or (condition == 'below' and price <= threshold_price):
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"Price alert! {crypto.capitalize()} has {'exceeded' if condition == 'above' else 'dropped below'} ${threshold_price} USD. Current price: ${price} USD."
+            )
 
 
 def main() -> None:
@@ -339,8 +386,11 @@ def main() -> None:
 
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler('convert', convert_command))
+    app.add_handler(CommandHandler('setalert', set_alert_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_error_handler(error_handler)
+    # Run alert checker periodically
+    app.job_queue.run_repeating(alert_check, interval=60)
 
     print('Starting bot...')
     app.run_polling(poll_interval=3)
