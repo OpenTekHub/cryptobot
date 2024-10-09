@@ -53,6 +53,15 @@ If you want to run this bot locally, follow these steps:
 2.  **Get Your Token**:  
     Copy the TOKEN provided by BotFather.
 
+3.  **Place the Token**:  
+    Copy the TOKEN provided by BotFather and paste it in the variable bot_token.
+
+
+4.  **Find an suitable name**:  
+    Place the name in the code for the variable bot_name.
+
+
+
 ---
 
 ### 🔐 **Set Environment Variables** 🔐
