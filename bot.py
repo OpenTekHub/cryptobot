@@ -367,6 +367,96 @@ async def alert_check(context: ContextTypes.DEFAULT_TYPE):
                 text=f"Price alert! {crypto.capitalize()} has {'exceeded' if condition == 'above' else 'dropped below'} ${threshold_price} USD. Current price: ${price} USD."
             )
 
+# News Feature
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, is_comparing: bool = False) -> None:
+    keyboard = [
+        [InlineKeyboardButton("Top 100 Cryptocurrencies", callback_data='top100')],
+        [InlineKeyboardButton("Trending Cryptocurrencies", callback_data='trending')],
+        [InlineKeyboardButton("Search Cryptocurrency", callback_data='search')],
+        [InlineKeyboardButton("Crypto News", callback_data='news')],  # Added the Crypto News option
+        [InlineKeyboardButton("Quit", callback_data='quit')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+   
+    # Show welcome message only when not comparing
+    if not is_comparing:
+        text = "Welcome to the Crypto Price Bot! What would you like to do?"
+    else:
+        text = "Select a cryptocurrency to compare."
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup)
+
+def get_crypto_news(limit=5):
+    # You can replace this with any reliable crypto news API service
+    response = requests.get(f"https://api.coingecko.com/api/v3/status_updates", params={'per_page': limit})
+    if response.status_code == 200:
+        return response.json().get('status_updates', [])
+    return []
+
+async def show_crypto_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.callback_query.edit_message_text("Fetching the latest crypto news, please wait...")
+
+    # Get the latest crypto news
+    news = get_crypto_news()
+    
+    if news:
+        news_message = "📰 Latest Cryptocurrency News:\n\n"
+        for item in news:
+            title = item.get('title', 'No title available')
+            description = item.get('description', 'No description available')
+            source = item.get('project', {}).get('name', 'Unknown source')
+            url = item.get('url', '#')
+            
+            news_message += f"🔸 <b>{title}</b>\n{description}\nSource: {source}\nRead more: {url}\n\n"
+    else:
+        news_message = "🚫 Unable to retrieve news at the moment."
+
+    await update.callback_query.edit_message_text(news_message, parse_mode='HTML')
+
+    # Add a back button to return to the main menu
+    keyboard = [[InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.message.reply_text("Select an option:", reply_markup=reply_markup)
+
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == 'main_menu':
+        await show_main_menu(update, context)
+        return MAIN_MENU
+
+    if query.data == 'top100':
+        await query.edit_message_text("Fetching top cryptocurrencies, please wait...")
+        cryptos = get_top_cryptos()
+        await show_crypto_list(update, context, cryptos, "Top 100 Cryptocurrencies:")
+        return CHOOSING_CRYPTO
+
+    elif query.data == 'news':  # Handle the news button click
+        await show_crypto_news(update, context)
+        return MAIN_MENU  # Return to main menu after viewing news
+
+    elif query.data == 'trending':
+        await query.edit_message_text("Fetching trending cryptocurrencies, please wait...")
+        cryptos = get_trending_cryptos()
+        await show_crypto_list(update, context, cryptos, "Trending Cryptocurrencies:")
+        return CHOOSING_CRYPTO
+    ...
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    help_text = (
+        "Welcome to the Crypto Price Bot!\n\n"
+        "Commands:\n"
+        "/start - Show main menu\n"
+        "/help - Show this help message\n"
+        "/convert - Convert Currencies From One To Another\n"
+        "/news - Fetch the latest cryptocurrency news\n\n"  # Added news feature here
+        "You can check prices of top cryptocurrencies, view trending coins, search for a specific cryptocurrency or convert them."
+    )
+    await update.message.reply_text(help_text)
+
 
 def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()
