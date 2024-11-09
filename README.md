@@ -28,7 +28,7 @@ If you want to run this bot locally, follow these steps:
 
 1. **Clone the Repository** 📂  
    ```bash
-   git clone https://github.com/yourusername/crypto-bot.git
+   git clone https://github.com/OpenTekHub/crypto-bot.git
    cd crypto-bot
 
 2.  **Install Dependencies** 🛠️  
@@ -52,6 +52,15 @@ If you want to run this bot locally, follow these steps:
     
 2.  **Get Your Token**:  
     Copy the TOKEN provided by BotFather.
+
+3.  **Place the Token**:  
+    Copy the TOKEN provided by BotFather and paste it in the variable bot_token.
+
+
+4.  **Find an suitable name**:  
+    Place the name in the code for the variable bot_name.
+
+
 
 ---
 
@@ -91,9 +100,13 @@ You should see **"Polling..."**, which means your bot is now running and ready t
 
 Here’s what you can do with the bot:
 
-*   **/start**: Initiate the bot 🤖
+*   **/start**: Initiate the bot and show the main menu 🤖
 *   **/help**: Get help on how to use the bot 💡
-*   **/price**: Fetch real-time prices for **Bitcoin, Ethereum, Litecoin** and more! 💰
+*   **/convert**: Convert cryptocurrencies into different currencies (e.g., `/convert bitcoin usd 1`) 💱
+*   **/setalert**: Set up price alerts for cryptocurrencies (e.g., `/setalert bitcoin above 60000`) 📈
+*   **Top 100 Cryptocurrencies**: View a list of the top 100 cryptocurrencies 📊
+*   **Trending Cryptocurrencies**: Check out the trending cryptocurrencies 🔥
+*   **Search Cryptocurrency**: Search for specific cryptocurrencies by name 🔍
 
 ---
 
