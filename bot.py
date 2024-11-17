@@ -308,17 +308,30 @@ def get_crypto_price(crypto: str, currency: str = 'usd'):
 # Convert crypto to different currencies
 async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 3:
-        await update.message.reply_text("Please use the format: /convert <crypto> <currency> <amount>\n\nFor Example `/convert bitcoin usd 1` - Convert bitcoin price into usd by fettching real time data\n\n")
+        await update.message.reply_text(
+            "Please use the format: /convert <crypto> <currency> <amount>\n\n"
+            "For example: `/convert bitcoin usd 1` - Converts 1 Bitcoin to USD based on real-time data.\n\n"
+        )
         return
+
     crypto = context.args[0].lower()
     currency = context.args[1].lower()
-    amount = float(context.args[2])
-    price = get_crypto_price(crypto, currency)
-    if price != 'Price not available':
-        converted_amount = price * amount
-        await update.message.reply_text(f"{amount} {crypto.capitalize()} is worth {converted_amount} {currency.upper()}.")
-    else:
-        await update.message.reply_text('Price not available.')
+    try:
+        amount = float(context.args[2])
+    except ValueError:
+        await update.message.reply_text("Please provide a valid numeric amount.")
+        return
+
+    # Fetch the price
+    price_per_unit = get_crypto_price(crypto, currency)
+    if price_per_unit == 'Price not available':
+        await update.message.reply_text(f"Sorry, I couldn't fetch the price for {crypto} in {currency}.")
+        return
+
+    total_value = price_per_unit * amount
+    await update.message.reply_text(
+        f"The value of {amount} {crypto.capitalize()} in {currency.upper()} is approximately {total_value:.2f} {currency.upper()}."
+    )
 
 
 # Add alerts 
